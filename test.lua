@@ -47,7 +47,7 @@ end
 
 do
     io.write("Password hashing...")
-    local hash = monocypher.argon2i("Passw0rd!", "Never gonna give")
+    local hash = monocypher.argon2("Passw0rd!", "Never gonna give")
     assert(tohex(hash) == "f7b146d75eda98e94de97e06140716be6b8a1f51324e3da76" ..
         "f42e0e795618568")
     print("OK")
@@ -63,8 +63,8 @@ end
 
 do
     io.write("Public key signatures...")
-    local signature, public_key = monocypher.sign(text)
-    assert(monocypher.check(text, signature, public_key))
+    local signature, public_key = monocypher.eddsa_sign(text)
+    assert(monocypher.eddsa_check(text, signature, public_key))
     signature, public_key = monocypher.ed25519_sign(text)
     assert(monocypher.ed25519_check(text, signature, public_key))
     print("OK")

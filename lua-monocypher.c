@@ -6,13 +6,13 @@
 
 #ifdef _WIN32
 #include <bcrypt.h>
-#define PRNG(BUF, BUFLEN) BCryptGenRandom(NULL, BUF, BUFLEN, \
+#define PRNG(buffer, size) BCryptGenRandom(NULL, buffer, size, \
     BCRYPT_USE_SYSTEM_PREFERRED_PRNG)
 #elif defined(__linux__)
 #include <sys/random.h>
-#define PRNG(BUF, BUFLEN) getrandom(BUF, BUFLEN, 0);
+#define PRNG(buffer, size) getrandom(buffer, size, 0);
 #else
-#define PRNG(BUF, BUFLEN) arc4random_buf(BUF, BUFLEN);
+#define PRNG(buffer, size) arc4random_buf(buffer, size);
 #endif
 
 #ifndef luaL_newlib
@@ -106,7 +106,7 @@ static int l_sha512(lua_State *L) {
     return 1;
 }
 
-static int l_argon2i(lua_State *L) {
+static int l_argon2(lua_State *L) {
     size_t password_size, salt_size;
     const char *password = luaL_checklstring(L, 1, &password_size);
     char *salt = (char *) luaL_optlstring(L, 2, NULL, &salt_size);
@@ -148,7 +148,8 @@ static int l_x25519(lua_State *L) {
         &your_secret_key_size);
     char free_your_secret_key = 0;
     char your_public_key[32];
-    char shared_secret[32];
+    char shared_key[32];
+    const uint8_t zero[16] = { 0 };
 
     luaL_argcheck(L, their_public_key_size == 0 || their_public_key_size == 32,
         1, "#their_public_key must be 32");
@@ -160,9 +161,11 @@ static int l_x25519(lua_State *L) {
         free_your_secret_key = 1;
     }
     if (their_public_key) {
-        crypto_x25519((uint8_t *) shared_secret, (const uint8_t *)
+        crypto_x25519((uint8_t *) shared_key, (const uint8_t *)
             your_secret_key, (const uint8_t *) their_public_key);
-        lua_pushlstring(L, shared_secret, 32);
+        crypto_hchacha20((uint8_t *) shared_key, (const uint8_t *) shared_key,
+            zero);
+        lua_pushlstring(L, shared_key, 32);
     } else {
         lua_pushnil(L);
     }
@@ -175,7 +178,7 @@ static int l_x25519(lua_State *L) {
     return 3;
 }
 
-static int l_sign(lua_State *L) {
+static int l_eddsa_sign(lua_State *L) {
     size_t message_size, secret_key_size;
     const char *message = luaL_checklstring(L, 1, &message_size);
     char *secret_key = (char *) luaL_optlstring(L, 2, NULL, &secret_key_size);
@@ -202,7 +205,7 @@ static int l_sign(lua_State *L) {
     return 3;
 }
 
-static int l_check(lua_State *L) {
+static int l_eddsa_check(lua_State *L) {
     size_t message_size, signature_size, public_key_size;
     const char *message = luaL_checklstring(L, 1, &message_size);
     const char *signature = luaL_checklstring(L, 2, &signature_size);
@@ -259,17 +262,43 @@ static int l_ed25519_check(lua_State *L) {
     return 1;
 }
 
+static int l_memcmp(lua_State *L) {
+    size_t i, a_size, b_size;
+    const char *a = luaL_checklstring(L, 1, &a_size);
+    const char *b = luaL_checklstring(L, 2, &b_size);
+    int result = 0;
+
+    if (a_size != b_size) lua_pushboolean(L, 0);
+    for (i = 0; i < a_size; i++) result |= a[i] ^ b[i];
+    lua_pushboolean(L, result == 0);
+    return 1;
+}
+
+static int l_random(lua_State *L) {
+    size_t size = luaL_checkinteger(L, 1);
+    char *buffer;
+
+    buffer = l_malloc(L, size);
+    PRNG(buffer, size);
+
+    lua_pushlstring(L, buffer, size);
+    free(buffer);
+    return 1;
+}
+
 static const luaL_Reg l_monocypher[] = {
     { "lock", l_lock },
     { "unlock", l_unlock },
     { "blake2b", l_blake2b },
     { "sha512", l_sha512 },
-    { "argon2i", l_argon2i },
+    { "argon2", l_argon2 },
     { "x25519", l_x25519 },
-    { "sign", l_sign },
-    { "check", l_check },
+    { "eddsa_sign", l_eddsa_sign },
+    { "eddsa_check", l_eddsa_check },
     { "ed25519_sign", l_ed25519_sign },
     { "ed25519_check", l_ed25519_check },
+    { "memcmp", l_memcmp },
+    { "random", l_random },
     { NULL, NULL }
 };
 

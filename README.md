@@ -29,9 +29,9 @@ A Lua wrapper for the [Monocypher](https://monocypher.org/) crypto library.
     message: string
     digest: string (64 bytes)
 
-### Password hashing with Argon2i ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106))
+### Password hashing with Argon2 ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106))
 
-    argon2i(password [, salt [, digest_size [, blocks [, iterations]]]]) => digest, salt
+    argon2(password [, salt [, digest_size [, blocks [, iterations]]]]) => digest, salt
 
     password: string
     salt: string (16 bytes), randomly generated when not provided
@@ -42,27 +42,38 @@ A Lua wrapper for the [Monocypher](https://monocypher.org/) crypto library.
 
 ### Public key exchanges with X25519 ([RFC 7748](https://www.rfc-editor.org/rfc/rfc7748))
 
-    x25519([their_public_key [, your_secret_key]]) => shared_secret, your_public_key, your_secret_key
-
-    NOTE: shared_secret should be concatenated with the public keys and digested before used as a key.
-    i.e. key = blake2b(shared_secret .. your_public_key .. their_public_key, 32)
+    x25519([their_public_key [, your_secret_key]]) => shared_key, your_public_key, your_secret_key
 
     their_public_key: string (32 bytes)
     your_secret_key: string (32 bytes), randomly generated when not provided
-    shared_secret: string (32 bytes) if their_public_key else nil
+    shared_key: string (32 bytes) if their_public_key else nil
     your_public_key: string (32 bytes)
 
 ### Public key signatures ([RFC 8032](https://www.rfc-editor.org/rfc/rfc8032))
 
-    sign(message [, secret_key]) => signature, public_key, secret_key
+    eddsa_sign(message [, secret_key]) => signature, public_key, secret_key
     ed25519_sign(message [, secret_key]) => signature, public_key, secret_key
-    check(message, signature, public_key) => bool
+    eddsa_check(message, signature, public_key) => bool
     ed25519_check(message, signature, public_key) => bool
 
     message: string
     secret_key: string (32 bytes), randomly generated when not provided
     signature: string (64 bytes)
     public_key: string (32 bytes)
+
+### Constant-time comparisons
+
+    memcmp(a, b) => bool
+
+    a: string
+    b: string
+
+### OS PRNG
+
+    random(size) => buffer
+
+    size: number
+    buffer: string
 
 ## License
 

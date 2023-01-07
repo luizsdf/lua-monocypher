@@ -44,10 +44,10 @@ A Lua wrapper for the [Monocypher](https://monocypher.org/) crypto library.
 
     their_public_key: string (32 bytes)
     your_secret_key: string (32 bytes), randomly generated if not provided
-    shared_key: string (32 bytes) if their_public_key else nil
     your_public_key: string (32 bytes)
+    shared_key: string (32 bytes) if their_public_key else nil
 
-### Public key signatures with Ed25519 ([RFC 8032](https://www.rfc-editor.org/rfc/rfc8032))
+### Public key signatures with Ed25519ph ([RFC 8032](https://www.rfc-editor.org/rfc/rfc8032))
 
     sign(message [, secret_key]) => signature, public_key, secret_key
     check(message, signature, public_key) => bool
@@ -55,6 +55,7 @@ A Lua wrapper for the [Monocypher](https://monocypher.org/) crypto library.
     message: string
     secret_key: string (32 bytes), randomly generated if not provided
     public_key: string (32 bytes)
+    signature: string (64 bytes)
 
 ### Constant-time comparisons
 

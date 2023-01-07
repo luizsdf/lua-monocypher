@@ -181,6 +181,7 @@ static int l_sign(lua_State *L)
     char *secret_key = (char *) luaL_optlstring(L, 2, NULL, &secret_key_size);
     char free_secret_key = 0;
     char signature[64];
+    uint8_t digest[64];
     char public_key[32];
 
     luaL_argcheck(L, secret_key_size == 0 || secret_key_size == 32, 2,
@@ -192,9 +193,9 @@ static int l_sign(lua_State *L)
     }
     crypto_ed25519_public_key((uint8_t *) public_key,
                               (const uint8_t *) secret_key);
+    crypto_sha512(digest, (const uint8_t *) message, message_size);
     crypto_ed25519_sign((uint8_t *) signature, (const uint8_t *) secret_key,
-                        (const uint8_t *) public_key,
-                        (const uint8_t *) message, message_size);
+                        (const uint8_t *) public_key, digest, 64);
 
     lua_pushlstring(L, signature, 64);
     lua_pushlstring(L, public_key, 32);
@@ -209,13 +210,14 @@ static int l_check(lua_State *L)
     const char *message = luaL_checklstring(L, 1, &message_size);
     const char *signature = luaL_checklstring(L, 2, &signature_size);
     const char *public_key = luaL_checklstring(L, 3, &public_key_size);
+    uint8_t digest[64];
 
     luaL_argcheck(L, signature_size == 64, 2, "#signature must be 64");
     luaL_argcheck(L, public_key_size == 32, 3, "#public_key must be 32");
 
+    crypto_sha512(digest, (const uint8_t *) message, message_size);
     lua_pushboolean(L, crypto_ed25519_check((const uint8_t *) signature,
-                    (const uint8_t *) public_key, (const uint8_t *) message,
-                    message_size) == 0);
+                    (const uint8_t *) public_key, digest, 64) == 0);
     return 1;
 }
 

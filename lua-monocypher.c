@@ -1,10 +1,11 @@
 #include <stdlib.h>
+#include <stdbool.h>
 #include "lua.h"
 #include "lauxlib.h"
 #include "monocypher.h"
 #include "monocypher-ed25519.h"
 
-#ifdef _WIN32
+#if defined(_WIN32)
 #include <bcrypt.h>
 #define PRNG(buffer, size) BCryptGenRandom(NULL, buffer, size, \
                                            BCRYPT_USE_SYSTEM_PREFERRED_PRNG)
@@ -31,23 +32,23 @@ static int l_encrypt(lua_State *L)
     size_t text_size, key_size;
     const char *plaintext = luaL_checklstring(L, 1, &text_size);
     char *key = (char *) luaL_optlstring(L, 2, NULL, &key_size);
-    char free_key = 0;
+    bool free_key = false;
     char *ciphertext;
 
     luaL_argcheck(L, key_size == 0 || key_size == 32, 2, "#key must be 32");
-    ciphertext = (char *) l_malloc(L, text_size + 40);
+    ciphertext = (char *) l_malloc(L, 24 + text_size + 16);
     PRNG(ciphertext, 24);
     if (!key) {
         key = (char *) l_malloc(L, 32);
         PRNG(key, 32);
-        free_key = 1;
+        free_key = true;
     }
     crypto_lock((uint8_t *) ciphertext + 24 + text_size,
                 (uint8_t *) ciphertext + 24, (const uint8_t *) key,
                 (const uint8_t *) ciphertext, (const uint8_t *) plaintext,
                 text_size);
 
-    lua_pushlstring(L, ciphertext, text_size + 40);
+    lua_pushlstring(L, ciphertext, 24 + text_size + 16);
     lua_pushlstring(L, key, 32);
     free(ciphertext);
     if (free_key) free(key);
@@ -119,7 +120,7 @@ static int l_argon2(lua_State *L)
     size_t password_size, salt_size;
     const char *password = luaL_checklstring(L, 1, &password_size);
     char *salt = (char *) luaL_optlstring(L, 2, NULL, &salt_size);
-    char free_salt = 0;
+    bool free_salt = false;
     uint32_t nb_blocks = luaL_optinteger(L, 3, 100000);
     uint32_t nb_iterations = luaL_optinteger(L, 4, 3);
     void *work_area;
@@ -130,7 +131,7 @@ static int l_argon2(lua_State *L)
     if (!salt) {
         salt = (char *) l_malloc(L, 16);
         PRNG(salt, 16);
-        free_salt = 1;
+        free_salt = true;
     }
     crypto_argon2i((uint8_t *) digest, 32, work_area, nb_blocks, nb_iterations,
                    (const uint8_t *) password, password_size,
@@ -150,7 +151,7 @@ static int l_exchange(lua_State *L)
                                                    &their_public_key_size);
     char *your_secret_key = (char *) luaL_optlstring(L, 2, NULL,
                                                      &your_secret_key_size);
-    char free_your_secret_key = 0;
+    bool free_your_secret_key = false;
     char your_public_key[32];
     char shared_key[32];
     const uint8_t zero[16] = { 0 };
@@ -163,13 +164,14 @@ static int l_exchange(lua_State *L)
     if (!your_secret_key) {
         your_secret_key = (char *) l_malloc(L, 32);
         PRNG(your_secret_key, 32);
-        free_your_secret_key = 1;
+        free_your_secret_key = true;
     }
     if (their_public_key) {
         crypto_from_eddsa_public(their_x25519_public_key,
                                  (const uint8_t *) their_public_key);
-        crypto_x25519((uint8_t *) shared_key, (const uint8_t *)
-                      your_secret_key, their_x25519_public_key);
+        crypto_x25519((uint8_t *) shared_key,
+                      (const uint8_t *) your_secret_key,
+                      their_x25519_public_key);
         crypto_hchacha20((uint8_t *) shared_key, (const uint8_t *) shared_key,
                          zero);
         lua_pushlstring(L, shared_key, 32);
@@ -190,7 +192,7 @@ static int l_sign(lua_State *L)
     size_t message_size, secret_key_size;
     const char *message = luaL_checklstring(L, 1, &message_size);
     char *secret_key = (char *) luaL_optlstring(L, 2, NULL, &secret_key_size);
-    char free_secret_key = 0;
+    bool free_secret_key = false;
     char signature[64];
     uint8_t digest[64];
     char public_key[32];
@@ -200,7 +202,7 @@ static int l_sign(lua_State *L)
     if (!secret_key) {
         secret_key = (char *) l_malloc(L, 32);
         PRNG(secret_key, 32);
-        free_secret_key = 1;
+        free_secret_key = true;
     }
     crypto_ed25519_public_key((uint8_t *) public_key,
                               (const uint8_t *) secret_key);
@@ -239,7 +241,7 @@ static int l_equal(lua_State *L)
     const char *b = luaL_checklstring(L, 2, &b_size);
     int result = 0;
 
-    if (a_size != b_size) lua_pushboolean(L, 0);
+    if (a_size != b_size) lua_pushboolean(L, false);
     for (i = 0; i < a_size; i++) result |= a[i] ^ b[i];
     lua_pushboolean(L, result == 0);
     return 1;

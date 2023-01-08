@@ -2,7 +2,6 @@ PREFIX = /usr/local
 LUA_VERSION = 5.1
 LUA_LIBDIR = $(DESTDIR)$(PREFIX)/lib/lua/$(LUA_VERSION)
 LUA_INCDIR = $(PREFIX)/include/lua$(LUA_VERSION)
-LUA = $(PREFIX)/bin/lua$(LUA_VERSION)
 
 CFLAGS = -Wall -Wextra -O2 -fPIC -I$(LUA_INCDIR)
 LDFLAGS = -shared
@@ -25,10 +24,7 @@ install: monocypher.so
 uninstall:
 	rm -f $(LUA_LIBDIR)/monocypher.so
 
-test: monocypher.so
-	$(LUA) test.lua
-	
 clean:
-	rm -rf monocypher.so $(OBJ)
+	rm -f monocypher.so $(OBJ)
 
-.PHONY: all install uninstall test clean
+.PHONY: all install uninstall clean

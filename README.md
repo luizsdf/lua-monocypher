@@ -23,9 +23,10 @@ A Lua wrapper for the [Monocypher](https://monocypher.org/) crypto library.
 
 ### Hashing with SHA-512 ([RFC 6234](https://www.rfc-editor.org/rfc/rfc6234))
 
-    sha512(message) => digest
+    sha512(message [, key]) => digest
 
     message: string
+    key: string (32 bytes) for a MAC
     digest: string (64 bytes)
 
 ### Password hashing with Argon2 ([RFC 9106](https://www.rfc-editor.org/rfc/rfc9106))
@@ -36,7 +37,7 @@ A Lua wrapper for the [Monocypher](https://monocypher.org/) crypto library.
     salt: string (16 bytes), randomly generated if not provided
     blocks: number of kilobytes allocated for the computation (the default is 100000)
     iterations: number (the default is 3)
-    digest: string (64 bytes)
+    digest: string (32 bytes)
 
 ### Public key exchanges with X25519 ([RFC 7748](https://www.rfc-editor.org/rfc/rfc7748))
 

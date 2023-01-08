@@ -96,11 +96,19 @@ static int l_blake2(lua_State *L)
 
 static int l_sha512(lua_State *L)
 {
-    size_t message_size;
+    size_t message_size, key_size;
     const char *message = luaL_checklstring(L, 1, &message_size);
+    const char *key = luaL_optlstring(L, 2, NULL, &key_size);
     char digest[64];
 
-    crypto_sha512((uint8_t *) digest, (const uint8_t *) message, message_size);
+    luaL_argcheck(L, key_size == 0 || key_size == 32, 2, "#key must be 32");
+    if (key) {
+        crypto_hmac_sha512((uint8_t *) digest, (const uint8_t *) key, key_size,
+                           (const uint8_t *) message, message_size);
+    } else {
+        crypto_sha512((uint8_t *) digest, (const uint8_t *) message,
+                      message_size);
+    }
 
     lua_pushlstring(L, digest, 64);
     return 1;
@@ -115,7 +123,7 @@ static int l_argon2(lua_State *L)
     uint32_t nb_blocks = luaL_optinteger(L, 3, 100000);
     uint32_t nb_iterations = luaL_optinteger(L, 4, 3);
     void *work_area;
-    char digest[64];
+    char digest[32];
 
     luaL_argcheck(L, salt_size == 0 || salt_size == 16, 2, "#salt must be 16");
     work_area = l_malloc(L, nb_blocks * 1024);
@@ -124,11 +132,11 @@ static int l_argon2(lua_State *L)
         PRNG(salt, 16);
         free_salt = 1;
     }
-    crypto_argon2i((uint8_t *) digest, 64, work_area, nb_blocks, nb_iterations,
+    crypto_argon2i((uint8_t *) digest, 32, work_area, nb_blocks, nb_iterations,
                    (const uint8_t *) password, password_size,
                    (const uint8_t *) salt, 16);
 
-    lua_pushlstring(L, digest, 64);
+    lua_pushlstring(L, digest, 32);
     lua_pushlstring(L, salt, 16);
     free(work_area);
     if (free_salt) free(salt);
@@ -146,6 +154,7 @@ static int l_exchange(lua_State *L)
     char your_public_key[32];
     char shared_key[32];
     const uint8_t zero[16] = { 0 };
+    uint8_t their_x25519_public_key[32];
 
     luaL_argcheck(L, their_public_key_size == 0 || their_public_key_size == 32,
                   1, "#their_public_key must be 32");
@@ -157,15 +166,17 @@ static int l_exchange(lua_State *L)
         free_your_secret_key = 1;
     }
     if (their_public_key) {
+        crypto_from_eddsa_public(their_x25519_public_key,
+                                 (const uint8_t *) their_public_key);
         crypto_x25519((uint8_t *) shared_key, (const uint8_t *)
-                      your_secret_key, (const uint8_t *) their_public_key);
+                      your_secret_key, their_x25519_public_key);
         crypto_hchacha20((uint8_t *) shared_key, (const uint8_t *) shared_key,
                          zero);
         lua_pushlstring(L, shared_key, 32);
     } else {
         lua_pushnil(L);
     }
-    crypto_x25519_public_key((uint8_t *) your_public_key,
+    crypto_ed25519_public_key((uint8_t *) your_public_key,
                              (const uint8_t *) your_secret_key);
 
     lua_pushlstring(L, your_public_key, 32);
